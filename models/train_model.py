@@ -1,7 +1,8 @@
 import torch, argparse
-from dl_utils import prepare_dataloader
-from trainer import Trainer
-from model_utils import init_model, eval_model
+from .dl_utils import prepare_dataloader
+from .trainer import Trainer
+from .model_utils import init_model
+from .evaluation import eval_model
 
 def train_model(species: str, 
                 arch: str, 

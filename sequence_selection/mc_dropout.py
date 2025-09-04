@@ -1,7 +1,7 @@
 import numpy as np
 import torch, os, argparse
 from models.model_utils import load_model
-from utils import enable_dropout
+from .utils import enable_dropout
 from models.dl_utils import prepare_dataloader, revcomp
 
 def mc_dropout(species: str,

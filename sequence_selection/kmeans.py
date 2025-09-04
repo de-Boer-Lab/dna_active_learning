@@ -1,7 +1,7 @@
 import pandas as pd
 import os, argparse
 from models.model_utils import load_model
-from utils import last_layer_features, _kmeans
+from .utils import last_layer_features, _kmeans
 from models.dl_utils import prepare_dataloader
 
 def kmeans_al(species: str,

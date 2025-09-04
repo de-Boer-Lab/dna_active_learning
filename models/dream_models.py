@@ -229,6 +229,7 @@ class DREAM_ATTN(nn.Module):
     ):
         super().__init__()
         self.seqsize = seqsize
+        self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
         # first block
         self.first_block = nn.Sequential(
@@ -275,7 +276,7 @@ class DREAM_ATTN(nn.Module):
         # core block
         x = x.transpose(1,2)
 
-        pos = torch.arange(start=0, end = self.seqsize, step=1) #.to(self.device)
+        pos = torch.arange(start=0, end = self.seqsize, step=1).to(self.device)
         pos = pos.unsqueeze(0)
         pos = self.core_pos_embedding(pos.long())
         x = x + pos

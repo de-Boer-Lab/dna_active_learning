@@ -1,7 +1,7 @@
 import pandas as pd
 import os, argparse
 from models.model_utils import load_model
-from utils import last_layer_features, LCMD
+from .utils import last_layer_features, LCMD
 from models.dl_utils import prepare_dataloader
 
 def lcmd(species: str,
