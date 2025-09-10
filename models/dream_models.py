@@ -11,7 +11,7 @@ class DREAM_RNN(nn.Module):
         in_channels: int = 4,
         first_out_channels: int = 320,
         core_out_channels: int = 320,
-        last_layer_channels: int = 64,
+        last_layer_channels: int = 256,
         seqsize: int = 150,
         lstm_hidden_channels: int = 320,
         first_kernel_sizes: List[int] = [9, 15],
@@ -19,7 +19,8 @@ class DREAM_RNN(nn.Module):
         pool_size: int = 1,
         first_dropout: float = 0.2,
         core_dropout_1: float = 0.2,
-        core_dropout_2: float = 0.5
+        core_dropout_2: float = 0.5,
+        final_activation=nn.ReLU
     ):
         super().__init__()
         each_first_out_channels = first_out_channels // len(first_kernel_sizes)
@@ -47,7 +48,8 @@ class DREAM_RNN(nn.Module):
         )
 
         self.final_linear = nn.Sequential(
-            nn.Linear(last_layer_channels, 1)
+            nn.Linear(last_layer_channels, 1),
+            final_activation()
         )
     
     def forward(self, x):
@@ -89,7 +91,7 @@ class DREAM_CNN(nn.Module):
         in_channels: int = 4,
         first_out_channels: int = 320,
         core_out_channels: int = 64,
-        last_layer_channels: int = 64,
+        last_layer_channels: int = 256,
         seqsize: int = 150,
         first_kernel_sizes: List[int] = [9, 15],
         pool_size: int = 1,
@@ -101,7 +103,8 @@ class DREAM_CNN(nn.Module):
         core_filter_per_group: int = 2,
         core_activation=nn.SiLU,
         core_ks: int = 7,
-        core_block_sizes = [128, 128, 64, 64, 64] 
+        core_block_sizes = [128, 128, 64, 64, 64],
+        final_activation=nn.ReLU
         
     ):
         super().__init__()
@@ -181,7 +184,8 @@ class DREAM_CNN(nn.Module):
         )
 
         self.final_linear = nn.Sequential(
-            nn.Linear(last_layer_channels, 1)
+            nn.Linear(last_layer_channels, 1),
+            final_activation()
         )
     
     def forward(self, x):
@@ -215,7 +219,7 @@ class DREAM_ATTN(nn.Module):
         in_channels: int = 4,
         first_out_channels: int = 256,
         core_out_channels: int=256,
-        last_layer_channels: int = 64,
+        last_layer_channels: int = 256,
         seqsize: int = 150,
         first_ks: int = 7,
         first_activation = nn.SiLU,
@@ -224,12 +228,13 @@ class DREAM_ATTN(nn.Module):
         core_num_heads: int = 8,
         core_ks: int = 15,
         core_dropout: float = 0.1,
-        core_n_blocks: int = 4
+        core_n_blocks: int = 4,
+        final_activation=nn.ReLU
         
     ):
         super().__init__()
         self.seqsize = seqsize
-        self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # first block
         self.first_block = nn.Sequential(
@@ -263,7 +268,8 @@ class DREAM_ATTN(nn.Module):
         )
 
         self.final_linear = nn.Sequential(
-            nn.Linear(last_layer_channels, 1)
+            nn.Linear(last_layer_channels, 1),
+            final_activation()
         )
         
 

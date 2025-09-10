@@ -9,15 +9,15 @@ def lcmd(species: str,
           round: int,
           seed: int,
           num_selected: int):    
-    data_path = f"/scratch/st-cdeboer-1/justin/data/al_v2/{species}/round_{round-1}/lcmd/{arch}_{seed}/pool.txt"
+    data_path = f"data/{species}/demo_pool.txt"    
     seqsize = 200 if species == 'human' else 150
     batch_size = 4096
 
     dataloader = prepare_dataloader(data_path, 
-                                seqsize=seqsize,
-                                species=species,
-                                batch_size=batch_size,
-                                shuffle = False)
+                                    seqsize=seqsize,
+                                    species=species,
+                                    batch_size=batch_size,
+                                    shuffle = False)
 
     model=load_model(species=species,al_method='lcmd',arch=arch,seed=seed,round=round-1)
 
@@ -33,7 +33,7 @@ def lcmd(species: str,
         n_selected=num_selected//1000
         folder_name = f"lcmd_{n_selected}k"
 
-    out_path = f"/scratch/st-cdeboer-1/justin/data/al_v2/{species}/round_{round}/{folder_name}/{arch}_{seed}"
+    out_path = f"data/{species}/round_{round}/{folder_name}/{arch}_{seed}"
 
     if not os.path.exists(out_path):
         os.makedirs(out_path)

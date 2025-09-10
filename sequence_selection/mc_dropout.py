@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import torch, os, argparse
 from models.model_utils import load_model
 from .utils import enable_dropout
@@ -10,10 +11,10 @@ def mc_dropout(species: str,
                seed: int,
                num_passes: int,
                num_selected: int):
-    data_path = f"/scratch/st-cdeboer-1/justin/data/al_v2/{species}/round_{round-1}/mcd/{arch}_{seed}/pool.txt"
+    data_path = f"data/{species}/demo_pool.txt"
     seqsize = 200 if species == 'human' else 150
     batch_size = 4096
-    device=torch.device("cuda")
+    device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     dataloader = prepare_dataloader(data_path, 
                                    seqsize=seqsize,
@@ -24,10 +25,11 @@ def mc_dropout(species: str,
     model = model.to(device).eval()
     enable_dropout(model)
 
+    df=pd.read_csv(data_path,header=None,sep='\t')
+    num_seqs=len(df)
+
+    all_var=[]
     with torch.inference_mode():
-        seq2var={}
-        var2seq={}
-        seq2expr={}
         for batch in dataloader:
             X = batch["x"].to(device)
             y = batch["y"]
@@ -38,20 +40,16 @@ def mc_dropout(species: str,
                 model_preds.append(model.forward(X))
             combined = torch.stack(model_preds).cpu().numpy()
             var = np.var(combined,axis=0)
-            for i in range(var.size):
-                if X[i][4,1].item()==0.0:
-                    seq2expr.update({seq[i]:y[i].item()})
-                else:
-                    seq[i] = revcomp(seq[i])
-                if (seq[i] not in seq2var) or (seq2var[seq[i]] < var[i]):
-                    seq2var.update({seq[i]:var[i].item()})
+            all_var.append(var)
 
-        for seq in seq2var.keys():
-            var2seq.update({seq2var[seq]:seq})
+    all_var=np.concatenate(all_var)
+    all_var=all_var.reshape(2,num_seqs)
+    all_var=np.max(all_var,axis=0) # take max variance between sequence and reverse complement
 
-    keys = list(var2seq.keys())
-    keys.sort(reverse=True)
-    print(keys[:50])
+    sorted_var=np.sort(all_var)
+    threshold=sorted_var[-num_selected]
+    selected_idx=np.where(all_var>=threshold)[0]
+    new_df=df.iloc[selected_idx].copy()
 
     if num_selected == 20000:
         folder_name = 'mcd'
@@ -59,15 +57,11 @@ def mc_dropout(species: str,
         n_selected=num_selected//1000
         folder_name = f"mcd_{n_selected}k"
 
-    out_path = f"/scratch/st-cdeboer-1/justin/data/al_v2/{species}/round_{round}/{folder_name}/{arch}_{seed}"
+    out_path = f"data/{species}/round_{round}/{folder_name}/{arch}_{seed}"
     if not os.path.exists(out_path):
         os.makedirs(out_path)
     file = f'{out_path}/selected.txt'
-
-    with open(file,'w') as f:
-        for i in range(num_selected):
-            seq = var2seq.get(keys[i])
-            f.write(seq+'\t'+str(seq2expr.get(seq))+'\n')
+    new_df.to_csv(file,sep='\t',header=None,index=None)
 
 def main():
     parser = argparse.ArgumentParser()

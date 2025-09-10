@@ -148,7 +148,7 @@ def prepare_dataloader(
     tsv_path: str,
     seqsize: int,
     species: str,
-    plasmid_path: str = '/scratch/st-cdeboer-1/justin/data/plasmid.json',
+    plasmid_path: str = 'data/yeast/plasmid.json',
     batch_size: int = 1024,
     num_workers: int = 4,
     shuffle: bool = True,

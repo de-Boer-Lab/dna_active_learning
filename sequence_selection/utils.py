@@ -7,7 +7,6 @@ from cuml.cluster import KMeans
 from sklearn.cluster import MiniBatchKMeans
 
 def enable_dropout(model: nn.Module):
-    """ Function to enable the dropout layers during test-time """
     for m in model.modules():
         if m.__class__.__name__.startswith('Dropout'):
             m.train()
@@ -33,7 +32,7 @@ class LayerInputExtractor:
 
 def last_layer_features(dataloader: DataLoader,
                         model: nn.Module) -> np.array:
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device).eval()
     extractor=LayerInputExtractor(model,model.final_linear[0])
 

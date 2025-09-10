@@ -1,10 +1,11 @@
 import torch, csv
 import numpy as np
 import pandas as pd
+from pathlib import Path
 from scipy.stats import pearsonr, spearmanr
 from collections import OrderedDict
 from .dl_utils import prepare_dataloader
-from .model_utils import init_model
+from .model_utils import load_model
 
 def load_ground_truth(filename):
     with open(filename) as f:
@@ -57,18 +58,18 @@ def calculate_diff_correlations(pair_list, expressions, GROUND_TRUTH_EXP):
 
     return pearson, spearman
 
-def evaluate_yeast_predictions(expressions,path: str):
+def evaluate_yeast_predictions(expressions,result_file: str):
     expressions = np.array(expressions)
-    GROUND_TRUTH_EXP = load_ground_truth('/scratch/st-cdeboer-1/justin/data/test.txt')
+    GROUND_TRUTH_EXP = load_ground_truth('data/yeast/test.txt')
     # Load indices for different promoter classes
-    high = load_promoter_class_indices('/scratch/st-cdeboer-1/justin/data/test_subset_ids/high_exp_seqs.csv')
-    low = load_promoter_class_indices('/scratch/st-cdeboer-1/justin/data/test_subset_ids/low_exp_seqs.csv')
-    yeast = load_promoter_class_indices('/scratch/st-cdeboer-1/justin/data/test_subset_ids/yeast_seqs.csv')
-    random = load_promoter_class_indices('/scratch/st-cdeboer-1/justin/data/test_subset_ids/all_random_seqs.csv')
-    challenging = load_promoter_class_indices('/scratch/st-cdeboer-1/justin/data/test_subset_ids/challenging_seqs.csv')
-    SNVs = load_promoter_class_indices('/scratch/st-cdeboer-1/justin/data/test_subset_ids/all_SNVs_seqs.csv')
-    motif_perturbation = load_promoter_class_indices('/scratch/st-cdeboer-1/justin/data/test_subset_ids/motif_perturbation_seqs.csv')
-    motif_tiling = load_promoter_class_indices('/scratch/st-cdeboer-1/justin/data/test_subset_ids/motif_tiling_seqs.csv')
+    high = load_promoter_class_indices('data/yeast/test_subset_ids/high_exp_seqs.csv')
+    low = load_promoter_class_indices('data/yeast/test_subset_ids/low_exp_seqs.csv')
+    yeast = load_promoter_class_indices('data/yeast/test_subset_ids/yeast_seqs.csv')
+    random = load_promoter_class_indices('data/yeast/test_subset_ids/all_random_seqs.csv')
+    challenging = load_promoter_class_indices('data/yeast/test_subset_ids/challenging_seqs.csv')
+    SNVs = load_promoter_class_indices('data/yeast/test_subset_ids/all_SNVs_seqs.csv')
+    motif_perturbation = load_promoter_class_indices('data/yeast/test_subset_ids/motif_perturbation_seqs.csv')
+    motif_tiling = load_promoter_class_indices('data/yeast/test_subset_ids/motif_tiling_seqs.csv')
 
     final_all = list(range(len(GROUND_TRUTH_EXP)))
 
@@ -96,7 +97,7 @@ def evaluate_yeast_predictions(expressions,path: str):
                     + 0.3 * motif_perturbation_spearman + 0.4 * motif_tiling_spearman) / 4.65
 
     # Print scores
-    with open(path, 'w') as f:
+    with open(result_file, 'w') as f:
         f.write('Pearson Score\t' + str(pearsons_score) + '\n')
         f.write('all r\t' + str(pearson) + '\n')
         f.write('high r\t' + str(high_pearson) + '\n')
@@ -108,12 +109,18 @@ def evaluate_yeast_predictions(expressions,path: str):
         f.write('motif perturbation r\t' + str(motif_perturbation_pearson) + '\n')
         f.write('motif tiling r\t' + str(motif_tiling_pearson) + '\n')
 
-def eval_human_model(al_method: str, round: int, arch: str, seed: int, batch_size: int=4096):
-    test_path_ID = f"/scratch/st-cdeboer-1/justin/data/al_new/human/test.txt" 
-    test_path_OOD = f"/scratch/st-cdeboer-1/justin/data/al_new/human/test_ood.txt" 
-    test_path_SNV = f"/scratch/st-cdeboer-1/justin/data/al_new/human/test_snvs.txt" 
+def eval_human_model(arch: str, 
+                     model_path: str | Path = None, 
+                     out_file: str | Path = None, 
+                     al_method: str = None, 
+                     round: int = None, 
+                     seed: int = None, 
+                     batch_size: int=4096):
+    test_path_ID = f"data/human/demo_test.txt" # replace with actual path
+    test_path_OOD = f"data/human/demo_test.txt"  # replace with actual path
+    test_path_SNV = f"data/human/demo_test_snv.txt" # replace with actual path
     seqsize = 200
-    device=torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     test_ID_dl = prepare_dataloader(test_path_ID, 
                                 seqsize=seqsize, 
@@ -130,16 +137,14 @@ def eval_human_model(al_method: str, round: int, arch: str, seed: int, batch_siz
                                 species='human',
                                 batch_size=batch_size,
                                 shuffle=False)
-    '''
-    model=load_model(species='human',
-                    al_method=al_method,
-                    arch=arch,
-                    seed= seed,
-                    round= round)
-    '''
-    model = init_model(species='human', arch=arch)
-    path = f'/scratch/st-cdeboer-1/justin/models/new_codebase/100k_models_orig/human/{arch}_{seed}/model_best.pth'
-    model.load_state_dict(torch.load(path, weights_only=True,map_location=device))
+    if model_path is not None:
+        model=load_model(path=model_path,species='human',arch=arch)
+    else: # model path inferred from arch, al_method, etc
+        model=load_model(species='human',
+                        arch=arch,
+                        al_method=al_method,
+                        seed=seed,
+                        round=round)
     model.to(device).eval()
 
     all_model_predictions=[]
@@ -168,18 +173,25 @@ def eval_human_model(al_method: str, round: int, arch: str, seed: int, batch_siz
     snv_pred = preds[:,1]-preds[:,0]
     final_result.append(pearsonr(snv_pred,snv_gt)[0])
 
-    #file=f"/scratch/st-cdeboer-1/justin/models/al_v2/human/round_{round}/{al_method}/{arch}_{seed}/results.txt"
-    file = f'/scratch/st-cdeboer-1/justin/models/new_codebase/100k_models_orig/human/{arch}_{seed}/results.txt'
-
-    with open(file, 'w') as f:
+    if out_file is not None:
+        result_file = out_file
+    else:
+        result_file = "data/human/results.txt" # replace with actual path 
+    with open(result_file, 'w') as f:
         f.write(f"ID\t{final_result[0]}\n")
         f.write(f"OOD\t{final_result[1]}\n")
         f.write(f"SNV\t{final_result[2]}\n")
 
-def eval_yeast_model(al_method: str, round: int, arch: str, seed: int, batch_size: int=4096):
-    test_path = f"/scratch/st-cdeboer-1/justin/data/al_new/yeast/test.txt" 
+def eval_yeast_model(arch: str,
+                     model_path: str | Path = None, 
+                     out_file: str | Path = None, 
+                     al_method: str = None, 
+                     seed: int = None, 
+                     round: int = None, 
+                     batch_size: int=4096):
+    test_path = f"data/yeast/test.txt" 
     seqsize = 150
-    device=torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     test_dl = prepare_dataloader(test_path, 
                                 seqsize=seqsize, 
@@ -187,16 +199,14 @@ def eval_yeast_model(al_method: str, round: int, arch: str, seed: int, batch_siz
                                 batch_size=batch_size,
                                 shuffle=False)
     
-    '''
-    model=load_model(species='yeast',
-            al_method=al_method,
-            arch=arch,
-            seed= seed,
-            round= round)
-    '''
-    model = init_model(species='yeast', arch=arch)
-    path = f'/scratch/st-cdeboer-1/justin/models/new_codebase/100k_models_orig/yeast/{arch}_{seed}/model_best.pth'
-    model.load_state_dict(torch.load(path, weights_only=True,map_location=device))
+    if model_path is not None:
+        model=load_model(path=model_path,species='yeast',arch=arch)
+    else: # model path inferred from arch, al_method, etc
+        model=load_model(species='yeast',
+                        arch=arch,
+                        al_method=al_method,
+                        seed=seed,
+                        round=round)
     model.to(device).eval()
 
     with torch.inference_mode():
@@ -208,18 +218,30 @@ def eval_yeast_model(al_method: str, round: int, arch: str, seed: int, batch_siz
     all_preds=np.squeeze(all_preds)
     result = average_fwd_rev_pred(data=all_preds)
 
-    #file=f"/scratch/st-cdeboer-1/justin/models/al_v2/yeast/round_{round}/{al_method}/{arch}_{seed}/results.txt"
-    file = f'/scratch/st-cdeboer-1/justin/models/new_codebase/100k_models_orig/yeast/{arch}_{seed}/results.txt'
-    evaluate_yeast_predictions(result,path=file)
+    if out_file is not None:
+        result_file = out_file
+    else:
+        result_file = "data/human/results.txt" # replace with actual path 
+    evaluate_yeast_predictions(result,result_file=result_file)
 
 def eval_model(species: str, 
-               al_method: str, 
-               round: int, 
                arch: str, 
-               seed: int, 
+               model_path: str | Path = None,
+               out_file: str | Path = None,
+               al_method: str = None, 
+               round: int = None, 
+               seed: int = None, 
                batch_size: int=4096):
+    '''
+    expects either model_path or (al_method AND round AND seed)
+    '''
     match species:
         case 'human':
-            return eval_human_model(al_method=al_method,round=round,arch=arch,seed=seed,batch_size=batch_size)
+            eval = eval_human_model
         case 'yeast':
-            return eval_yeast_model(al_method=al_method,round=round,arch=arch,seed=seed,batch_size=batch_size)
+            eval = eval_yeast_model
+
+    if model_path is not None:
+        return eval(arch=arch,model_path=model_path,out_file=out_file)
+    else: # infer model path from other params
+        return eval(arch=arch,al_method=al_method,round=round,seed=seed)

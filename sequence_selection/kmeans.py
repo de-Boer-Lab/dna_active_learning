@@ -10,7 +10,7 @@ def kmeans_al(species: str,
              seed: int,
              num_selected: int):
     
-    data_path = f"/scratch/st-cdeboer-1/justin/data/al_v2/{species}/round_{round-1}/kmeans/{arch}_{seed}/pool.txt"
+    data_path = f"data/{species}/demo_pool.txt"
     seqsize = 200 if species == 'human' else 150
     batch_size = 4096
 
@@ -34,8 +34,7 @@ def kmeans_al(species: str,
         n_selected=num_selected//1000
         folder_name = f"kmeans_{n_selected}k"
 
-    out_path = f"/scratch/st-cdeboer-1/justin/data/al_v2/{species}/round_{round}/{folder_name}/{arch}_{seed}"
-
+    out_path = f"data/{species}/round_{round}/{folder_name}/{arch}_{seed}"
     if not os.path.exists(out_path):
         os.makedirs(out_path)
     df.to_csv(f'{out_path}/selected.txt',sep='\t', index=False,header=False)

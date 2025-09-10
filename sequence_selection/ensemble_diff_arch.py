@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import torch, os, argparse
 from models.model_utils import load_model
 from models.dl_utils import prepare_dataloader, revcomp
@@ -8,10 +9,10 @@ def ensemble_diff_arch(species: str,
                        round: int,
                        seed: int,
                        num_selected: int):
-    data_path = f"/scratch/st-cdeboer-1/justin/data/al_v2/{species}/round_{round-1}/{composition}/{arch}_{seed}/pool.txt"
+    data_path = f"data/{species}/demo_pool.txt"
     seqsize = 200 if species == 'human' else 150
     batch_size = 4096
-    device=torch.device("cuda")
+    device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     dataloader = prepare_dataloader(data_path, 
                                 seqsize=seqsize,
@@ -28,10 +29,11 @@ def ensemble_diff_arch(species: str,
     attn=load_model(species=species,al_method=composition,arch='attn',seed=seed,round=round-1)
     attn = attn.to(device).eval()
 
+    df=pd.read_csv(data_path,header=None,sep='\t')
+    num_seqs=len(df)
+
+    all_var=[]
     with torch.inference_mode():
-        seq2var={}
-        var2seq={}
-        seq2expr={}
         for batch in dataloader:
             X = batch["x"].to(device)
             y = batch["y"]
@@ -53,20 +55,16 @@ def ensemble_diff_arch(species: str,
                 var = torch.abs(rnn_pred-attn_pred).cpu().numpy()
             else: # cnn-attn
                 var = torch.abs(cnn_pred-attn_pred).cpu().numpy()
+            all_var.append(var)
 
-            for i in range(var.size):
-                if X[i][4,1].item()==0.0:
-                    seq2expr.update({seq[i]:y[i].item()})
-                else:
-                    seq[i] = revcomp(seq[i])
-                if (seq[i] not in seq2var) or (seq2var[seq[i]] < var[i]):
-                    seq2var.update({seq[i]:var[i].item()})
-        for seq in seq2var.keys():
-            var2seq.update({seq2var[seq]:seq})
+    all_var=np.concatenate(all_var)
+    all_var=all_var.reshape(2,num_seqs)
+    all_var=np.max(all_var,axis=0) # take max variance between sequence and reverse complement
 
-    keys = list(var2seq.keys())
-    keys.sort(reverse=True)
-    print(keys[:50])
+    sorted_var=np.sort(all_var)
+    threshold=sorted_var[-num_selected]
+    selected_idx=np.where(all_var>=threshold)[0]
+    new_df=df.iloc[selected_idx].copy()
 
     if num_selected == 20000:
         folder_name = composition
@@ -74,17 +72,14 @@ def ensemble_diff_arch(species: str,
         n_selected=num_selected//1000
         folder_name = f"{composition}_{n_selected}k"
 
-    out_path = f"/scratch/st-cdeboer-1/justin/data/al_v2/{species}/round_{round}/{folder_name}/seed_{seed}"
+    out_path = f"data/{species}/round_{round}/{folder_name}/seed_{seed}"
     if not os.path.exists(out_path):
         os.makedirs(out_path)
     file = f'{out_path}/selected.txt'
     for arch in ['cnn','rnn','attn']:
-        os.symlink(out_path, f'/scratch/st-cdeboer-1/justin/data/al_v2/{species}/round_{round}/{folder_name}/{arch}_{seed}')
+        os.symlink(out_path, f'data/{species}/round_{round}/{folder_name}/{arch}_{seed}')
 
-    with open(file,'w') as f:
-        for i in range(num_selected):
-            seq = var2seq.get(keys[i])
-            f.write(seq+'\t'+str(seq2expr.get(seq))+'\n')
+    new_df.to_csv(file,sep='\t',header=None,index=None)
 
 def main():
     parser = argparse.ArgumentParser()
