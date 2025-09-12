@@ -1,15 +1,17 @@
 import pandas as pd
 import os, argparse
 from models.model_utils import load_model
-from .utils import last_layer_features, LCMD
-from models.dl_utils import prepare_dataloader
+from .utils import IPCA, LCMD
+from models.dl_utils import prepare_dataloader, file_length
 
 def lcmd(species: str,
           arch: str,
           round: int,
           seed: int,
-          num_selected: int):    
+          num_selected: int,
+          num_pca_components: int=64):    
     data_path = f"data/{species}/demo_pool.txt"    
+    n_samples = file_length(data_path)
     seqsize = 200 if species == 'human' else 150
     batch_size = 4096
 
@@ -17,12 +19,13 @@ def lcmd(species: str,
                                     seqsize=seqsize,
                                     species=species,
                                     batch_size=batch_size,
-                                    shuffle = False)
+                                    shuffle = False,
+                                    revcomp_same_batch=True)
 
     model=load_model(species=species,al_method='lcmd',arch=arch,seed=seed,round=round-1)
 
-    last_layer=last_layer_features(dataloader,model=model)
-    final_result=LCMD(last_layer,num_clusters=num_selected)
+    post_pca=IPCA(model=model,dataloader=dataloader, n_samples=n_samples, n_components=num_pca_components)
+    final_result=LCMD(post_pca,num_clusters=num_selected)
 
     df=pd.read_csv(data_path,sep='\t',header=None)
     df=df.iloc[final_result]

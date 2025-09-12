@@ -1,5 +1,6 @@
 import numpy as np
-import torch
+import cupy as cp
+import torch, gc
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -30,8 +31,64 @@ class LayerInputExtractor:
     def close(self):
         self.hook.remove()
 
+def free_gpu_mem():
+    cp.get_default_memory_pool().free_all_blocks()
+    gc.collect()
+
+def clear_gpu():
+    free_gpu_mem()
+    torch.cuda.empty_cache()
+    torch.cuda.ipc_collect()
+
+def get_last_layer(model: nn.Module, 
+                   dataloader: DataLoader, 
+                   device: torch.device):
+    model.to(device).eval()
+    extractor=LayerInputExtractor(model,model.final_linear[0])
+    with torch.inference_mode():
+        for batch in dataloader:
+            X = batch["x"].to(device)
+            result = extractor(X)
+            half_batch = result.shape[0]//2
+            yield (result[:half_batch,:]+result[half_batch:,:])/2
+
+def IPCA(model: nn.Module, 
+         dataloader: DataLoader, 
+         n_samples: int, 
+         n_components: int, 
+         batch_size: int=4096): 
+    if torch.cuda.is_available():
+        gpu = True
+        device=torch.device("cuda")  
+        from cuml.decomposition import IncrementalPCA 
+    else:
+        gpu = False
+        device=torch.device("cpu")
+        from sklearn.decomposition import IncrementalPCA
+
+    ipca = IncrementalPCA(n_components=n_components, batch_size=batch_size)
+    for batch in get_last_layer(model=model,
+                                dataloader=dataloader,
+                                device=device):
+        if batch.shape[0] >= n_components:
+            ipca.partial_fit(batch)
+            if gpu:
+                free_gpu_mem()
+    
+    results=cp.empty((n_samples,n_components)) if gpu else np.empty((n_samples,n_components))
+    for i, batch in enumerate(get_last_layer(model=model,
+                                             dataloader=dataloader, 
+                                             device=device)):
+        results[i*batch_size:min((i+1)*batch_size, n_samples),:]=ipca.transform(batch)
+    
+    if gpu:
+        results=cp.asnumpy(results)
+        clear_gpu()
+        
+    return results
+
 def last_layer_features(dataloader: DataLoader,
-                        model: nn.Module) -> np.array:
+                        model: nn.Module) -> np.ndarray: # UNUSED
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device).eval()
     extractor=LayerInputExtractor(model,model.final_linear[0])
@@ -45,13 +102,13 @@ def last_layer_features(dataloader: DataLoader,
     num_samples=combined.shape[0]//2
     return (combined[:num_samples]+combined[num_samples:])/2
 
-def distance_np(target: np.array, X: np.array) -> np.array:
+def distance_np(target: np.ndarray, X: np.ndarray) -> np.ndarray:
     return np.sum((target-X)**2,axis=1)
 
 def distance_torch(target: torch.Tensor,X: torch.Tensor) -> torch.Tensor:
-    return torch.sum((target-X)**2,axis=1)
+    return torch.sum((target-X)**2,dim=1)
 
-def _kmeans(data: np.array, num_selected: int) -> np.array:
+def _kmeans(data: np.ndarray, num_selected: int) -> np.ndarray:
     if torch.cuda.is_available():
         kmeans = KMeans(n_clusters=num_selected)
         clustered=kmeans.fit(data)
@@ -72,7 +129,7 @@ def _kmeans(data: np.array, num_selected: int) -> np.array:
             selected_idx[cluster_id] = global_indices[min_index_local]
     return selected_idx
 
-def LCMD_cpu(data: np.array, num_clusters: int) -> np.array:
+def LCMD_cpu(data: np.ndarray, num_clusters: int) -> np.ndarray:
     n_points, n_dims = data.shape
     
     centers_idx = np.empty(num_clusters, dtype=np.int32)
@@ -109,7 +166,7 @@ def LCMD_cpu(data: np.array, num_clusters: int) -> np.array:
     #return center idx
     return centers_idx
 
-def LCMD_gpu(data: np.array,num_clusters: int) -> np.array:
+def LCMD_gpu(data: np.ndarray,num_clusters: int) -> np.ndarray:
     n_points, n_dims = data.shape
     
     data_gpu = torch.from_numpy(data).to(device='cuda')
@@ -149,7 +206,7 @@ def LCMD_gpu(data: np.array,num_clusters: int) -> np.array:
     #return center idx
     return centers_idx.cpu().numpy()
 
-def LCMD(data: np.array, num_clusters: int) -> np.array:
+def LCMD(data: np.ndarray, num_clusters: int) -> np.ndarray:
     if torch.cuda.is_available(): # run on gpu if possible
         return LCMD_gpu(data,num_clusters)
     else:
