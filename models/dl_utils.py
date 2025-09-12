@@ -1,8 +1,7 @@
-import torch
+import torch, math, json
 import torch.nn.functional as F
 import pandas as pd
 import numpy as np
-import json
 
 CODES = {"A": 0, "T": 3, "G": 1, "C": 2, 'N': 4}
 COMPL = {'A': 'T', 'T': 'A', 'G': 'C', 'C': 'G', 'N': 'N'}
@@ -25,6 +24,11 @@ def pad_sequence(seq, seqsize: int) -> str:
     left_pad = total_pad // 2
     right_pad = total_pad - left_pad
     return 'N' * left_pad + seq + 'N' * right_pad
+
+def file_length(file: str) -> int:
+    with open(file,'w') as f:
+        lines=f.readlines()
+        return len(lines)
 
 def preprocess_data(df: pd.DataFrame, 
                     seqsize: int, 
@@ -63,13 +67,25 @@ def preprocess_yeast_data(df: pd.DataFrame,
     df.seq = df.seq.str.slice(-seqsize, None)
     return df
 
-def add_revcomp(df: pd.DataFrame) -> pd.DataFrame:
+def add_revcomp(df: pd.DataFrame,
+                revcomp_same_batch: bool=False,
+                batch_size: int=4096) -> pd.DataFrame:
     df = df.copy()
     rev = df.copy()
     rev['seq'] = df['seq'].apply(revcomp)
     rev['rev'] = 1
     df['rev'] = 0
-    return pd.concat([df, rev], ignore_index=True)
+    if revcomp_same_batch:
+        df_list = []
+        half_batch=batch_size//2
+        df_size=len(df)
+        for batch_num in range(math.ceil(df_size/half_batch)):
+            df_list.append(pd.concat([df[batch_num*half_batch:min((batch_num+1)*half_batch, df_size)], 
+                                      rev[batch_num*half_batch:min((batch_num+1)*half_batch, df_size)]])
+                                      .reset_index(drop=True))
+        return pd.concat(df_list,ignore_index=True)
+    else:
+        return pd.concat([df, rev],ignore_index=True)
 
 def add_singleton_column(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
@@ -79,11 +95,12 @@ def add_singleton_column(df: pd.DataFrame) -> pd.DataFrame:
 def preprocess_tsv(path: str, 
                    seqsize: int, 
                    species: str,
-                   plasmid_path: str | None) -> pd.DataFrame:
+                   plasmid_path: str | None,
+                   revcomp_same_batch: bool=False) -> pd.DataFrame:
     df = pd.read_csv(path, sep="\t", header=None)
     df.columns = ['seq', 'expr']
     df = preprocess_data(df, seqsize=seqsize, species=species, plasmid_path=plasmid_path)
-    df = add_revcomp(df)
+    df = add_revcomp(df,revcomp_same_batch=revcomp_same_batch)
     if species == 'yeast':
         df = add_singleton_column(df)
     return df
@@ -153,13 +170,15 @@ def prepare_dataloader(
     num_workers: int = 4,
     shuffle: bool = True,
     generator: torch.Generator = None,
-    batch_per_epoch: int = None
+    batch_per_epoch: int = None,
+    revcomp_same_batch: bool = False
 ) -> torch.utils.data.DataLoader:
     
     df = preprocess_tsv(path=tsv_path, 
                         seqsize=seqsize,
                         species=species,
-                        plasmid_path=plasmid_path)
+                        plasmid_path=plasmid_path,
+                        revcomp_same_batch=revcomp_same_batch)
     use_single_channel = species == 'yeast'
     dataset = SeqExprDataset(df=df, 
                              seqsize=seqsize,

@@ -52,7 +52,7 @@ class DREAM_RNN(nn.Module):
             final_activation()
         )
     
-    def forward(self, x):
+    def forward(self, x) -> torch.Tensor:
         # x: (batch_size, 4, seq_len), 4 channels: A, C, G, T
         if len(x.shape) < 3:
             x = F.one_hot(x.to(torch.int64), self.in_channels)
@@ -188,7 +188,7 @@ class DREAM_CNN(nn.Module):
             final_activation()
         )
     
-    def forward(self, x):
+    def forward(self, x) -> torch.Tensor:
         # x: (batch_size, 4, seq_len), 4 channels: A, C, G, T
         if len(x.shape) < 3:
             x = F.one_hot(x.to(torch.int64), self.in_channels)

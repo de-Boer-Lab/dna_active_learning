@@ -1,8 +1,9 @@
 import torch
+import torch.nn as nn
 from pathlib import Path
 from . import dream_models
 
-def init_model(species: str, arch: str):
+def init_model(species: str, arch: str) -> nn.Module:
     match species:
         case 'yeast':
             seqsize=150
@@ -18,13 +19,15 @@ def init_model(species: str, arch: str):
             return dream_models.DREAM_CNN(in_channels=num_channels,seqsize=seqsize)
         case 'attn':
             return dream_models.DREAM_ATTN(in_channels=num_channels,seqsize=seqsize)
+        case _:
+            raise ValueError("Model architecture must be 'cnn','rnn', or 'attn'")
 
 def load_model(species: str,
                arch: str,
                path: str | Path = None, 
                al_method: str = None,
-               seed: int = None,
-               round: int = None):
+               seed: int = 42,
+               round: int = None) -> nn.Module:
     '''
     expects either a path to a model.pth file OR 
     can construct a path with al_method, seed, round

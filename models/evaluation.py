@@ -7,14 +7,14 @@ from collections import OrderedDict
 from .dl_utils import prepare_dataloader
 from .model_utils import load_model
 
-def load_ground_truth(filename):
+def load_ground_truth(filename: str | Path) -> np.ndarray:
     with open(filename) as f:
         reader = csv.reader(f, delimiter="\t")
         lines = list(reader)
     expressions = [float(line[1]) for line in lines]
     return np.array(expressions)
 
-def average_fwd_rev_pred(data: np.array) -> np.array:
+def average_fwd_rev_pred(data: np.ndarray) -> np.ndarray:
     num_samples=len(data)//2
     return (data[:num_samples]+data[num_samples:])/2
 
@@ -98,16 +98,16 @@ def evaluate_yeast_predictions(expressions,result_file: str):
 
     # Print scores
     with open(result_file, 'w') as f:
-        f.write('Pearson Score\t' + str(pearsons_score) + '\n')
-        f.write('all r\t' + str(pearson) + '\n')
-        f.write('high r\t' + str(high_pearson) + '\n')
-        f.write('low r\t' + str(low_pearson) + '\n')
-        f.write('yeast r\t' + str(yeast_pearson) + '\n')
-        f.write('random r\t' + str(random_pearson) + '\n')
-        f.write('challenging r\t' + str(challenging_pearson) + '\n')
-        f.write('SNVs r\t' + str(SNVs_pearson) + '\n')
-        f.write('motif perturbation r\t' + str(motif_perturbation_pearson) + '\n')
-        f.write('motif tiling r\t' + str(motif_tiling_pearson) + '\n')
+        f.write(f'Pearson Score\t{pearsons_score}\n')
+        f.write(f'all r\t{pearson}\n')
+        f.write(f'high r\t{high_pearson}\n')
+        f.write(f'low r\t{low_pearson}\n')
+        f.write(f'yeast r\t{yeast_pearson}\n')
+        f.write(f'random r\t{random_pearson}\n')
+        f.write(f'challenging r\t{challenging_pearson}\n')
+        f.write(f'SNVs r\t{SNVs_pearson}\n')
+        f.write(f'motif perturbation r\t{motif_perturbation_pearson}\n')
+        f.write(f'motif tiling r\t{motif_tiling_pearson}\n')
 
 def eval_human_model(arch: str, 
                      model_path: str | Path = None, 
@@ -242,6 +242,6 @@ def eval_model(species: str,
             eval = eval_yeast_model
 
     if model_path is not None:
-        return eval(arch=arch,model_path=model_path,out_file=out_file)
+        return eval(arch=arch,model_path=model_path,out_file=out_file,batch_size=batch_size)
     else: # infer model path from other params
-        return eval(arch=arch,al_method=al_method,round=round,seed=seed)
+        return eval(arch=arch,al_method=al_method,round=round,seed=seed,batch_size=batch_size)
