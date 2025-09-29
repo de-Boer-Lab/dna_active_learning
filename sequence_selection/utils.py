@@ -44,11 +44,12 @@ def get_last_layer(model: nn.Module,
                    dataloader: DataLoader, 
                    device: torch.device):
     model.to(device).eval()
-    extractor=LayerInputExtractor(model,model.final_linear[0])
+    extractor=LayerInputExtractor(model,model.final_mapper[0])
     with torch.inference_mode():
         for batch in dataloader:
             X = batch["x"].to(device)
             result = extractor(X)
+            result=result.reshape((result.shape[0],-1))
             half_batch = result.shape[0]//2
             yield (result[:half_batch,:]+result[half_batch:,:])/2
 
@@ -66,7 +67,7 @@ def IPCA(model: nn.Module,
         device=torch.device("cpu")
         from sklearn.decomposition import IncrementalPCA
 
-    ipca = IncrementalPCA(n_components=n_components, batch_size=batch_size)
+    ipca = IncrementalPCA(n_components=n_components, whiten=True, batch_size=batch_size)
     for batch in get_last_layer(model=model,
                                 dataloader=dataloader,
                                 device=device):
@@ -88,7 +89,7 @@ def IPCA(model: nn.Module,
     return results
 
 def last_layer_features(dataloader: DataLoader,
-                        model: nn.Module) -> np.ndarray: # UNUSED
+                        model: nn.Module) -> np.ndarray: # CURRENTLY UNUSED
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device).eval()
     extractor=LayerInputExtractor(model,model.final_linear[0])
@@ -124,9 +125,9 @@ def _kmeans(data: np.ndarray, num_selected: int) -> np.ndarray:
 
         if cluster_points.shape[0] > 0:
             distances = distance_np(centers[cluster_id],cluster_points)
-            min_index_local = np.argmin(distances)
-            global_indices = np.arange(data.shape[0])[mask]
-            selected_idx[cluster_id] = global_indices[min_index_local]
+            min_local_idx = np.argmin(distances)
+            global_idx = np.arange(data.shape[0])[mask]
+            selected_idx[cluster_id] = global_idx[min_local_idx]
     return selected_idx
 
 def LCMD_cpu(data: np.ndarray, num_clusters: int) -> np.ndarray:
@@ -206,8 +207,8 @@ def LCMD_gpu(data: np.ndarray,num_clusters: int) -> np.ndarray:
     #return center idx
     return centers_idx.cpu().numpy()
 
-def LCMD(data: np.ndarray, num_clusters: int) -> np.ndarray:
-    if torch.cuda.is_available(): # run on gpu if possible
+def LCMD(data: np.ndarray, num_clusters: int, force_cpu: bool=False) -> np.ndarray:
+    if torch.cuda.is_available() and not force_cpu: # run on gpu if possible
         return LCMD_gpu(data,num_clusters)
     else:
         return LCMD_cpu(data,num_clusters)

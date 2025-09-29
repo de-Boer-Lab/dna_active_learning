@@ -3,15 +3,16 @@ import pandas as pd
 import torch, os, argparse
 from models.model_utils import load_model
 from .utils import enable_dropout
-from models.dl_utils import prepare_dataloader, revcomp
+from models.dl_utils import prepare_dataloader
 
 def mc_dropout(species: str,
                arch: str,
                round: int,
                seed: int,
-               num_passes: int,
-               num_selected: int):
-    data_path = f"data/{species}/demo_pool.txt"
+               num_passes: int=5,
+               num_selected: int=20_000):
+    DATA_ROOT="" # replace with the root directory of your AL run
+    data_path = f"/{DATA_ROOT}/{species}/round_{round-1}/mcd/{arch}_{seed}/pool.txt"
     seqsize = 200 if species == 'human' else 150
     batch_size = 4096
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -32,12 +33,10 @@ def mc_dropout(species: str,
     with torch.inference_mode():
         for batch in dataloader:
             X = batch["x"].to(device)
-            y = batch["y"]
-
             model_preds=[]
 
             for _ in range(num_passes):
-                model_preds.append(model.forward(X))
+                model_preds.append(model(X))
             combined = torch.stack(model_preds).cpu().numpy()
             var = np.var(combined,axis=0)
             all_var.append(var)
@@ -51,13 +50,13 @@ def mc_dropout(species: str,
     selected_idx=np.where(all_var>=threshold)[0]
     new_df=df.iloc[selected_idx].copy()
 
-    if num_selected == 20000:
+    if num_selected == 20_000:
         folder_name = 'mcd'
     else:
         n_selected=num_selected//1000
         folder_name = f"mcd_{n_selected}k"
 
-    out_path = f"data/{species}/round_{round}/{folder_name}/{arch}_{seed}"
+    out_path = f"/{DATA_ROOT}/{species}/round_{round}/{folder_name}/{arch}_{seed}"
     if not os.path.exists(out_path):
         os.makedirs(out_path)
     file = f'{out_path}/selected.txt'
@@ -70,12 +69,12 @@ def main():
     parser.add_argument("round",type=int)
     parser.add_argument("seed", type=int)
     parser.add_argument("--num_passes",type=int,default=5)
-    parser.add_argument("--num_selected",type=int,default=20000)
+    parser.add_argument("--num_selected",type=int,default=20_000)
     args = parser.parse_args()
 
     print("Received:")
     for name, value in vars(args).items():
-        print(f"  {name}: {value}")
+        print(f"{name}: {value}")
 
     mc_dropout(species=args.species,
                arch=args.arch,

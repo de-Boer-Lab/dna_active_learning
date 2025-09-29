@@ -8,13 +8,13 @@ def kmeans_al(species: str,
              arch: str,
              round: int,
              seed: int,
-             num_selected: int,
+             num_selected: int=20_000,
              num_pca_components: int=64):
-    
-    data_path = f"data/{species}/demo_pool.txt"
+    DATA_ROOT="" # replace with the root directory of your AL run
+    data_path = f"/{DATA_ROOT}/{species}/round_{round-1}/kmeans/{arch}_{seed}/pool.txt"
     n_samples = file_length(data_path)
     seqsize = 200 if species == 'human' else 150
-    batch_size = 4096
+    batch_size = 2048
 
     dataloader = prepare_dataloader(data_path, 
                                     seqsize=seqsize,
@@ -25,19 +25,23 @@ def kmeans_al(species: str,
 
     model=load_model(species=species,al_method='kmeans',arch=arch,seed=seed,round=round-1)
 
-    post_pca=IPCA(model=model,dataloader=dataloader, n_samples=n_samples, n_components=num_pca_components)
+    post_pca=IPCA(model=model,
+                  dataloader=dataloader, 
+                  n_samples=n_samples, 
+                  n_components=num_pca_components,
+                  batch_size=batch_size//2)
     selected_idx = _kmeans(post_pca, num_selected=num_selected)
 
     df=pd.read_csv(data_path,sep='\t',header=None)
     df=df.iloc[selected_idx]
 
-    if num_selected == 20000:
+    if num_selected == 20_000:
         folder_name = "kmeans"
     else:
         n_selected=num_selected//1000
         folder_name = f"kmeans_{n_selected}k"
 
-    out_path = f"data/{species}/round_{round}/{folder_name}/{arch}_{seed}"
+    out_path = f"/{DATA_ROOT}/{species}/round_{round}/{folder_name}/{arch}_{seed}"
     if not os.path.exists(out_path):
         os.makedirs(out_path)
     df.to_csv(f'{out_path}/selected.txt',sep='\t', index=False,header=False)
@@ -53,7 +57,7 @@ def main():
 
     print("Received:")
     for name, value in vars(args).items():
-        print(f"  {name}: {value}")
+        print(f"{name}: {value}")
         
     kmeans_al(species=args.species,
              arch=args.arch,
