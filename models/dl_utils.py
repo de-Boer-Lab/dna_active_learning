@@ -26,7 +26,7 @@ def pad_sequence(seq, seqsize: int) -> str:
     return 'N' * left_pad + seq + 'N' * right_pad
 
 def file_length(file: str) -> int:
-    with open(file,'w') as f:
+    with open(file,'r') as f:
         lines=f.readlines()
         return len(lines)
 
@@ -96,11 +96,12 @@ def preprocess_tsv(path: str,
                    seqsize: int, 
                    species: str,
                    plasmid_path: str | None,
-                   revcomp_same_batch: bool=False) -> pd.DataFrame:
+                   revcomp_same_batch: bool=False,
+                   batch_size: int=1024) -> pd.DataFrame:
     df = pd.read_csv(path, sep="\t", header=None)
     df.columns = ['seq', 'expr']
     df = preprocess_data(df, seqsize=seqsize, species=species, plasmid_path=plasmid_path)
-    df = add_revcomp(df,revcomp_same_batch=revcomp_same_batch)
+    df = add_revcomp(df,revcomp_same_batch=revcomp_same_batch,batch_size=batch_size)
     if species == 'yeast':
         df = add_singleton_column(df)
     return df
@@ -178,7 +179,8 @@ def prepare_dataloader(
                         seqsize=seqsize,
                         species=species,
                         plasmid_path=plasmid_path,
-                        revcomp_same_batch=revcomp_same_batch)
+                        revcomp_same_batch=revcomp_same_batch,
+                        batch_size=batch_size)
     use_single_channel = species == 'yeast'
     dataset = SeqExprDataset(df=df, 
                              seqsize=seqsize,

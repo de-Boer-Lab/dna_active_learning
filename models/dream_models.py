@@ -20,7 +20,7 @@ class DREAM_RNN(nn.Module):
         first_dropout: float = 0.2,
         core_dropout_1: float = 0.2,
         core_dropout_2: float = 0.5,
-        final_activation=nn.ReLU
+        final_activation=nn.SiLU
     ):
         super().__init__()
         each_first_out_channels = first_out_channels // len(first_kernel_sizes)
@@ -40,17 +40,16 @@ class DREAM_RNN(nn.Module):
         self.do = nn.Dropout(core_dropout_2)
 
         # final block
-        self.final_mapper = nn.Conv1d(
-            in_channels=core_out_channels,
-            out_channels=last_layer_channels,
-            kernel_size=1,
-            padding='same',
-        )
-
-        self.final_linear = nn.Sequential(
-            nn.Linear(last_layer_channels, 1),
+        self.final_mapper = nn.Sequential(
+            nn.Conv1d(
+                in_channels=core_out_channels,
+                out_channels=last_layer_channels,
+                kernel_size=1,
+                padding='same'
+            ),
             final_activation()
         )
+        self.final_linear = nn.Linear(last_layer_channels, 1)
     
     def forward(self, x) -> torch.Tensor:
         # x: (batch_size, 4, seq_len), 4 channels: A, C, G, T
@@ -104,7 +103,7 @@ class DREAM_CNN(nn.Module):
         core_activation=nn.SiLU,
         core_ks: int = 7,
         core_block_sizes = [128, 128, 64, 64, 64],
-        final_activation=nn.ReLU
+        final_activation=nn.SiLU
         
     ):
         super().__init__()
@@ -176,17 +175,16 @@ class DREAM_CNN(nn.Module):
         self.seqextractor = nn.ModuleDict(seqextblocks)
 
         # final block
-        self.final_mapper = nn.Conv1d(
-            in_channels=core_out_channels,
-            out_channels=last_layer_channels,
-            kernel_size=1,
-            padding='same',
-        )
-
-        self.final_linear = nn.Sequential(
-            nn.Linear(last_layer_channels, 1),
+        self.final_mapper = nn.Sequential(
+            nn.Conv1d(
+                in_channels=core_out_channels,
+                out_channels=last_layer_channels,
+                kernel_size=1,
+                padding='same'
+            ),
             final_activation()
         )
+        self.final_linear = nn.Linear(last_layer_channels, 1)
     
     def forward(self, x) -> torch.Tensor:
         # x: (batch_size, 4, seq_len), 4 channels: A, C, G, T
@@ -229,7 +227,7 @@ class DREAM_ATTN(nn.Module):
         core_ks: int = 15,
         core_dropout: float = 0.1,
         core_n_blocks: int = 4,
-        final_activation=nn.ReLU
+        final_activation=nn.SiLU
         
     ):
         super().__init__()
@@ -260,17 +258,16 @@ class DREAM_ATTN(nn.Module):
         self.core_pos_embedding = nn.Embedding(seqsize, core_out_channels)
 
         # final block
-        self.final_mapper = nn.Conv1d(
-            in_channels=core_out_channels,
-            out_channels=last_layer_channels,
-            kernel_size=1,
-            padding='same',
-        )
-
-        self.final_linear = nn.Sequential(
-            nn.Linear(last_layer_channels, 1),
+        self.final_mapper = nn.Sequential(
+            nn.Conv1d(
+                in_channels=core_out_channels,
+                out_channels=last_layer_channels,
+                kernel_size=1,
+                padding='same'
+            ),
             final_activation()
         )
+        self.final_linear = nn.Linear(last_layer_channels, 1)
         
 
     def forward(self, x) -> torch.Tensor:
