@@ -7,7 +7,7 @@ import argparse
 from pathlib import Path
 from tqdm import tqdm
 from sklearn.cluster import MiniBatchKMeans
-from models.model_utils import load_model
+from models.model_loader import load_al_model
 from .dataloader import prepare_dataloader
 from .utils import get_last_layer, free_gpu_mem, free_gpu_mem_gc, distance_torch, distance_np, write_selections
 from nextFrag.config import get_project_root, DATASET_CONFIG
@@ -38,7 +38,7 @@ def diversity_al(
         revcomp_same_batch = True
     )
 
-    model=load_model(dataset=dataset,al_strategy=strategy,arch=arch,seed=seed,round_num=round_num-1)
+    model=load_al_model(dataset=dataset,al_strategy=strategy,arch=arch,seed=seed,round_num=round_num-1)
 
     post_pca=IPCA(model=model,
                   dataloader=dataloader, 

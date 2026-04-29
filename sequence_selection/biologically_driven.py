@@ -5,7 +5,7 @@ from pathlib import Path
 import itertools
 import argparse
 from tqdm import tqdm
-from models.model_utils import load_model
+from models.model_loader import load_al_model
 from .dataloader import prepare_dataloader
 from .utils import write_selections, _forward
 from nextFrag.config import get_project_root, DATASET_CONFIG
@@ -32,7 +32,7 @@ def max_expression(
         shuffle=False
     )
 
-    model=load_model(dataset=dataset,arch=arch,al_strategy=strategy,seed=seed,round_num=round_num)
+    model=load_al_model(dataset=dataset,arch=arch,al_strategy=strategy,seed=seed,round_num=round_num)
     model.to(device).eval()
     
     df=pd.read_csv(data_path,header=None,sep='\t')
@@ -89,7 +89,7 @@ def ism(
         df= df[~df['seq'].str.contains('N')]
     df = df.iloc[job_id*seqs_per_job:(job_id+1)*seqs_per_job]
 
-    model=load_model(dataset=dataset,arch=arch,al_strategy='common',seed=seed,round='0')
+    model=load_al_model(dataset=dataset,arch=arch,al_strategy='common',seed=seed,round='0')
     model.to(device).eval()
 
     attrs = np.empty((len(df), end_pos - start_pos, 3), dtype=np.float32)

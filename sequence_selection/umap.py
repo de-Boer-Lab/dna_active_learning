@@ -4,7 +4,7 @@ import pandas as pd
 from pathlib import Path
 from .diversity_strategies import IPCA
 from .dataloader import prepare_dataloader
-from models.model_utils import load_model
+from models.model_loader import load_model
 from nextFrag.config import get_project_root, DATASET_CONFIG
 
 def umap(
@@ -29,7 +29,7 @@ def umap(
         revcomp_same_batch = True
     )
 
-    model=load_model(dataset=dataset,arch=arch,path=model_path,original=True)
+    model=load_model(dataset=dataset,arch=arch,path=model_path)
 
     X=IPCA(model=model,
            dataloader=dataloader, 

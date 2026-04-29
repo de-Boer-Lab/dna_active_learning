@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import torch
 import argparse
-from models.model_utils import load_model
+from models.model_loader import load_al_model
 from .utils import enable_dropout, write_selections, _forward
 from .dataloader import prepare_dataloader
 from nextFrag.config import get_project_root, DATASET_CONFIG
@@ -28,7 +28,7 @@ def mc_dropout(
         batch_size=batch_size,
         shuffle = False
     )
-    model=load_model(dataset=dataset,al_strategy='mcd',arch=arch,seed=seed,round_num=round_num-1)
+    model=load_al_model(dataset=dataset,al_strategy='mcd',arch=arch,seed=seed,round_num=round_num-1)
     model = model.to(device).eval()
     enable_dropout(model)
 

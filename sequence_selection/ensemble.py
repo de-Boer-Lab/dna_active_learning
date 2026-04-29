@@ -4,7 +4,7 @@ import torch, argparse, copy
 from typing import List
 from pathlib import Path
 from .utils import write_selections, _forward
-from models.model_utils import load_model
+from models.model_loader import load_al_model
 from .dataloader import prepare_dataloader
 from nextFrag.config import get_project_root, DATASET_CONFIG
 
@@ -22,20 +22,13 @@ def ensemble_select(
 
     Parameters
     ----------
-    models : list[torch.nn.Module]
-        Two or more models.
-    data_path : Path
-        Tab-separated pool file.
-    num_selected : int
-        How many sequences to keep.
-    batch_size : int
-        Dataloader batch size.
-    seqsize : int
-        Sequence length expected by the models.
-    dataset : str
-        Dataset identifier forwarded to ``prepare_dataloader``.
-    dream_model : bool
-        If True, call ``model.predict(X)``; otherwise ``model(X)``.
+    models: Two or more models.
+    data_path: Tab-separated pool file.
+    num_selected: How many sequences to keep.
+    batch_size: Dataloader batch size.
+    seqsize: Sequence length expected by the models.
+    dataset: Dataset identifier forwarded to ``prepare_dataloader``.
+    dream_model: If True, call ``model.predict(X)``; otherwise ``model(X)``.
 
     Returns
     -------
@@ -95,7 +88,7 @@ def ensemble_multi_arch(
 
     models = []    
     if composition != 'cnn-attn':
-        rnn = load_model(
+        rnn = load_al_model(
             dataset=dataset,
             al_strategy=composition,
             arch='rnn',
@@ -105,7 +98,7 @@ def ensemble_multi_arch(
         models.append(rnn)
     
     if composition != 'rnn-attn':
-        cnn = load_model(
+        cnn = load_al_model(
             dataset=dataset,
             al_strategy=composition,
             arch='cnn',
@@ -115,7 +108,7 @@ def ensemble_multi_arch(
         models.append(cnn)
     
     if composition != 'rnn-cnn':
-        attn = load_model(
+        attn = load_al_model(
             dataset=dataset,
             al_strategy=composition,
             arch='attn',
@@ -162,7 +155,7 @@ def ensemble_same_arch(
 
     models=[]
     for seed in seeds:
-        model=load_model(dataset=dataset, al_strategy='same_arch', arch=arch, seed=seed, round_num=round_num-1)
+        model=load_al_model(dataset=dataset, al_strategy='same_arch', arch=arch, seed=seed, round_num=round_num-1)
         models.append(copy.deepcopy(model))  
 
     result_df = ensemble_select(
