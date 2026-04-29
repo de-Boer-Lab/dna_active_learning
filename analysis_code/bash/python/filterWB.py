@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 import sys
 
 ##This scripts filters for whole blood TF following the counts per sequence from polygraph
-sites = pd.read_csv('/scratch/st-cdeboer-1/emmanuel/al_selected_seqs/human/jaspar.pooled.deduplicated.tsv', sep='\t')
-gtex = pd.read_csv('/scratch/st-cdeboer-1/emmanuel/al_selected_seqs/human/GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_median_tpm.gct.gz', sep='\t', header =2)
+sites = pd.read_csv('jaspar.pooled.deduplicated.tsv', sep='\t')
+gtex = pd.read_csv('GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_median_tpm.gct.gz', sep='\t', header =2)
 
 # Get blood-expressed TFs (this line is probably correct)
 blood_tfs = gtex.loc[gtex['Whole Blood'] > 1, 'Description']
