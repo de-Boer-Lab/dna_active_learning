@@ -33,7 +33,7 @@ pip install -e .
 
 Before running experiments, use `setup_dataset.sh` to scaffold the expected directory layout, place your data files, initialize a `results.tsv` for tracking runs, and record the project root so all Python commands can find it.
 
-Full datasets used in the paper will be available soon on Zenodo.
+Full datasets used in the paper are available on [Zenodo](https://zenodo.org/records/20094954).
 Demo subsets for quick testing are included under `data/yeast/` and `data/human/`.
 
 ```bash
@@ -236,7 +236,7 @@ python -m nextfrag.models.evaluation \
     --acquisition mcd --round 2 --seed 42
 ```
 
-### Analysis Tools
+### Additional Analysis Tools
 
 **Prediction error** — run inference and write prediction error alongside ground truth:
 ```bash
@@ -251,6 +251,16 @@ python -m nextfrag.analysis.umap \
     --dataset yeast --arch rnn \
     --model-path model_best.pth --out-path umap.tsv
 ```
+
+## Biological Analyses
+
+Scripts to perform biological analyses of AL selected sequences compared to the overall AL pool. Links to documentation:
+
+[Input sequences formatting](https://github.com/de-Boer-Lab/nextFrag/tree/main/biological_analysis/bash)
+
+[Computing of dinucleotide content and TFBS scanning](https://github.com/de-Boer-Lab/nextFrag/tree/main/biological_analysis/bash)
+
+[Enrichment analyses: dinucleotide content, TFBS content and TFs](https://github.com/de-Boer-Lab/nextFrag/tree/main/biological_analysis/R)
 
 ## Adding New Architectures
 
