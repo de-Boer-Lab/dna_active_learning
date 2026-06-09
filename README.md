@@ -271,3 +271,8 @@ Register a new architecture for running AL experiments in three steps:
 3. Add training defaults to `ARCH_CONFIG` in [config.py](src/nextfrag/config.py)
 
 Alternatively, pass `--model-class mypackage.models.MyModel` to the training CLI to use any `nn.Module` directly without modifying the registry.
+
+# Paper
+
+Check out our [preprint on bioRxiv](https://www.biorxiv.org/content/10.64898/2026.05.21.727038v1) titled, "*Evaluation of Active Learning Selection Strategies and Characterization of Informative Sequences for Sequence-to-Expression Models*", for more details.
+
